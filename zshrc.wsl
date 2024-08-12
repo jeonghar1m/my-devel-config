@@ -1,0 +1,4 @@
+unsetopt BG_NICE
+TZ='Asia/Seoul'; export TZ
+export PATH=/mnt/c/Windows/System32:$PATH
+export BROWSER='/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe'

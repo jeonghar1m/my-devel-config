@@ -1,0 +1,98 @@
+function ec2list() {
+    if [[ -z $AWS_PROFILE ]]; then
+        AWS_PROFILE=default
+    fi
+    EC2=$( aws ec2 describe-instances --profile $AWS_PROFILE --query 'Reservations[*].Instances[*].{Instance:InstanceId,PrivateIP:PrivateIpAddress,Name:Tags[?Key==`Name`]|[0].Value}' --filters Name=instance-state-name,Values=running --output text | fzf +s --tac --height "50%" | awk '{ if ($0 ~ /prod/) { print "prod-"$1 } else if ($0 ~ /dev-nft/) { print "dev-nft-"$1 } else if ($0 ~ /dev/) { print "dev-"$1 } }' )
+    if [[ "$AWS_PROFILE" != "default" ]]; then
+        EC2="$AWS_PROFILE-$EC2"
+    fi
+    echo $EC2
+}
+
+function rdslist() {
+    if [[ -z $AWS_PROFILE ]]; then
+        AWS_PROFILE=default
+    fi
+    RDS=$( aws rds describe-db-instances --profile $AWS_PROFILE --query 'DBInstances[*].{DBInstance:Endpoint.Address}' --output text | fzf +s --tac --height '50%' )
+    echo $RDS
+}
+
+function redislist() {
+    if [[ -z $AWS_PROFILE ]]; then
+        AWS_PROFILE=default
+    fi
+    REDIS=$( aws elasticache describe-cache-clusters --profile $AWS_PROFILE --show-cache-node-info --query 'CacheClusters[*].{CacheCluster:CacheNodes[0].Endpoint.Address}' --output text | fzf +s --tac --height '50%' )
+    echo $REDIS
+}
+
+function mqlist() {
+    if [[ -z $AWS_PROFILE ]]; then
+        AWS_PROFILE=default
+    fi
+    MQID=$( aws mq list-brokers --profile $AWS_PROFILE --query 'BrokerSummaries[*].[BrokerName, BrokerId]' --output text | fzf +s --tac --height '50%' | awk '{ print $2 }')
+    MQ=$(aws mq describe-broker --profile $AWS_PROFILE --broker-id $MQID --query 'BrokerInstances[*].Endpoints[0]' --output text | sed -E 's|amqps://||g')
+    echo $MQ
+}
+
+function ecslist() {
+    if [[ -z $AWS_PROFILE ]]; then
+        AWS_PROFILE=default
+    fi
+    CLUSTER=$(aws ecs list-clusters --profile $AWS_PROFILE --output text | awk '{ print $2 }' | fzf +s --tac --height '50%')
+    SERVICE=$(aws ecs list-services --profile $AWS_PROFILE --cluster $CLUSTER --output text | awk '{ print $2 }' | fzf +s --tac --height '50%')
+    TASKARN=$(aws ecs list-tasks --profile $AWS_PROFILE --cluster $CLUSTER --service-name $SERVICE  --output text | awk 'NR==1 {print $2}')
+    CONTAINER_INSTANCE=$(aws ecs describe-tasks --profile $AWS_PROFILE --cluster $CLUSTER --tasks $TASKARN | jq -r '.tasks[0].containerInstanceArn')
+    InstanceId=$(aws ecs describe-container-instances --profile $AWS_PROFILE --cluster $CLUSTER --container-instances  $CONTAINER_INSTANCE  | jq -r --arg prefix "$SERVICE " '$prefix + .containerInstances[0].ec2InstanceId' | awk '{ if ($1 ~ /prod/) { print "prod-"$2 } else if ($1 ~ /dev-nft/) { print "dev-nft-"$2 } else if ($1 ~ /dev/) { print "dev-"$2 } }')
+    if [[ "$AWS_PROFILE" != "default" ]]; then
+        InstanceId="$AWS_PROFILE-$InstanceId"
+    fi
+    echo $InstanceId
+}
+
+function ecsconf() {
+    ECSCONF=$(cat ~/.ecs/config | grep "^  [a-z]" | tr -d ":" | fzf +s --tac --height '50%' | awk '{ print $1 }') 
+    ecs-cli configure default --config-name $ECSCONF
+}
+
+function ecslog() {
+    TARGET=$(ecs-cli ps --desired-status=RUNNING | awk '{ print $1 }' | fzf +s --tac --height '50%' | tr '/' ' ' | awk '{ print $2 }')
+    ecs-cli logs --follow --task-id $TARGET
+}
+
+function sshtunnel() {
+    localport=$1
+    forwardInfo=""
+    if [[ "$localport" == "" ]]; then
+      echo "usage) sshtunnel <local port> [redis|mq|off]"
+      echo "       sshtunnel <local port:host:remote port> [off]"
+      echo ""
+    elif [[ "$2" == "off" ]]; then
+      SESSIONKEY=$(ps -eo command | grep "ssh.*-CNf" | grep -v grep | grep "\-L $localport:" | awk '{print $22}')
+      SESSIONID=$(aws ssm describe-sessions --state Active --query "Sessions[].[SessionId,Reason]" --output=text | grep ${SESSIONKEY} | awk '{print $1}')
+      PAGER=cat aws ssm terminate-session --session-id ${SESSIONID} --output text
+      echo "SSH Tunneling off for $localport(${SESSIONID})"
+    elif [[ "$2" == "redis" ]]; then
+      forwardInfo="$localport:$(redislist):6379"
+    elif [[ "$2" == "mq" ]]; then
+      forwardInfo="$localport:$(mqlist)"
+    elif [[ "$1" =~ ":" ]]; then
+      forwardInfo="$localport"
+    else
+      forwardInfo="$localport:$(rdslist):3306"
+    fi
+
+    if [[ "$forwardInfo" != "" ]]; then
+        ec2host=$(ec2list)
+        ssh -o "ServerAliveInterval 10" -o "ServerAliveCountMax 2880" -o "ProxyCommand sh -c \"aws ssm start-session --target $(echo ${ec2host}|cut -d - -f2-) --document-name AWS-StartSSHSession --parameters 'portNumber=%p' --reason $(uuid) \"" -CNf -L ${forwardInfo} $ec2host
+    fi
+
+    echo "Current Tunnelings..."
+    TUNNEL_LIST=$(ps -eo pid,command | grep "ssh.*-CNf" | grep -v grep | awk '{printf "%05d | %s\n", $1, $27}')
+    if [[ "$TUNNEL_LIST" != "" ]]; then
+        echo "PID   | Tunneling"
+        echo $TUNNEL_LIST
+    else
+        echo "Nothing"
+    fi
+}
+

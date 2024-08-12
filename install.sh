@@ -135,3 +135,5 @@ git clone https://github.com/gmarik/vundle.git ~/.vim/bundle/vundle
 
 echo "vundle 설치중..."
 $VI -c :BundleInstall -c :qa
+
+$HOME/my-devel-config/goinstall.sh

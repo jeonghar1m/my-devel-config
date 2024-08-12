@@ -1,0 +1,2 @@
+#!/bin/sh
+$LVIM --listen /tmp/nvim-server-$(tmux display-message -p '#I.#P').pipe -- "$@"

@@ -1,0 +1,21 @@
+_touchd () {
+if [[ ! -f $PWD/.envrc ]]; then
+local SHORTPWD="`basename $PWD`"
+echo "export DSTASK_CONTEXT=project:$SHORTPWD" >> .envrc
+direnv allow
+fi
+}
+
+_dstask () {
+    dstask $@
+}
+
+alias p='noglob _dstask'
+alias pa='DSTASK_CONTEXT=none noglob _dstask'
+alias pn='noglob _dstask show-active'
+alias touchd="noglob _touchd"
+
+export DSTASK_CONTEXT=+inbox
+export DIRENV_LOG_FORMAT= #for silent
+
+_evalcache direnv hook zsh

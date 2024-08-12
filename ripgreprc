@@ -1,0 +1,30 @@
+# Don't let ripgrep vomit really long lines to my terminal.
+--max-columns=150
+--column
+--line-number
+--no-heading
+--fixed-strings
+--ignore-case
+--no-ignore
+--hidden
+--follow
+
+# Add my 'web' type.
+--type-add
+web:*.{html,css,js}*
+
+# Using glob patterns to include/exclude files or folders
+--glob
+!.git/*
+!tags
+!cscope.out
+!vendor/*
+!.gopath/*
+
+# Set the colors.
+--color=always
+#--colors=line:none
+#--colors=line:style:bold
+
+# Because who cares about case!?
+--smart-case

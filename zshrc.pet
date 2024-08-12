@@ -1,0 +1,31 @@
+function prev() {
+    PREV=$( ([ -n "$ZSH_NAME" ] && fc -l 1 || history) | fzf +s --tac --height "50%" | sed -E 's/ *[0-9]*\*? *//' | sed -E 's/\\/\\\\/g')
+    [[ "$PREV" = "" ]] && echo "canceled" && return
+    sh -c "pet new `printf %q "$PREV"`"
+}
+
+function pet-select() {
+    BUFFER=$(pet search --query "$LBUFFER")
+    CURSOR=$#BUFFER
+    zle redisplay
+}
+
+zle -N pet-select
+stty -ixon
+bindkey '^s' pet-select
+
+function _strapi() {
+  local result
+  if [[ "${1}" = "" ]]; then
+    echo "strapi <labelkey> [loud | notefolio]"
+  elif [[ "${2}" != "" ]]; then
+    result=`curl -s "https://dev-strapi.stunning.kr/api/${2}-code-labels?fields\[0\]=label&filters\[labelKey\]\[$eqi\]=${1}"`
+  else
+    result=`curl -s "https://dev-strapi.stunning.kr/api/loud-code-labels?fields\[0\]=label&filters\[labelKey\]\[$eqi\]=${1}"`
+  fi
+  echo "$result" | jq ".data[0].attributes.label" | tr -d '"'
+}
+
+export FPATH="$HOME/my-devel-config/eza/completions/zsh:$FPATH"
+alias strapi='noglob _strapi'
+alias ls='eza -F --icons'

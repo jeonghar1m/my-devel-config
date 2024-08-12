@@ -1,0 +1,2 @@
+[[ $# -eq 0 ]] && jaso . 2> /dev/null
+[[ $# -eq 1 ]] && jaso $1 2> /dev/null

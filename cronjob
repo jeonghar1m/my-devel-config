@@ -1,0 +1,36 @@
+#!/bin/zsh
+
+source /Users/newro/.zshrc
+
+# * * * * * cd /Users/newro/my-devel-config && ./cronjob > /tmp/cron.log 2>&1
+# * * * * * sleep 30; cd /Users/newro/my-devel-config && ./cronjob >> /tmp/cron.log 2>&1
+# 0 0 * * * /opt/homebrew/bin/aws ecr get-login-password --region ap-northeast-2 | /usr/local/bin/docker login --username AWS --password-stdin 295442024548.dkr.ecr.ap-northeast-2.amazonaws.com
+
+echo "Starting script" `date`
+export PATH=/opt/homebrew/bin:$PATH
+# Pet gist info on obsidian
+PET=$(which pet)
+# dstask git co git@gitlab.com:newrovp/dstask.git
+DSTASK=$(which dstask)
+echo $PET
+echo $DSTASK
+$PET sync
+$DSTASK sync
+
+
+[[ ! -d ~/.config/wttr.in ]] && mkdir -p ~/.config/wttr.in
+[[ ! -f ~/.config/wttr.in/last_forecast ]] && touch ~/.config/wttr.in/last_forecast
+[[ ! -f ~/.config/wttr.in/forecast ]] && touch -A -3000 ~/.config/wttr.in/last_forecast
+
+current=`date +%s`
+last_modified=`stat -f "%m" ~/.config/wttr.in/last_forecast`
+if [ $(($current-$last_modified)) -gt 900 ]; then 
+  curl -s -m 1 wttr.in/Seoul\?format=3 >~/.config/wttr.in/last_forecast 2>&1
+  failed=`cat ~/.config/wttr.in/last_forecast`
+  if [ "$failed" != "" ]; then
+    cp -fp ~/.config/wttr.in/last_forecast ~/.config/wttr.in/forecast
+  else
+    touch -A -0840 ~/.config/wttr.in/last_forecast
+  fi
+fi
+echo "Finished" `date`

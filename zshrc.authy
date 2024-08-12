@@ -1,0 +1,33 @@
+# https://github.com/alanplatt/mac-oath-mfa
+function mfa () {
+   local MFA_DEVICE_NAME="${1}"
+   if [[ -z "${MFA_DEVICE_NAME}" ]]; then
+     echo "USAGE: mfa MFA_DEVICE_NAME";
+   else
+     echo -n "$(date '+%H:%M:%S') "
+     local password=$(security find-generic-password -ga "${MFA_DEVICE_NAME}" 2>&1 >/dev/null)
+     local result=$(oathtool --base32 --totp $(echo "$password" | cut -d'"' -f2))
+     echo $result
+     echo $result | tr -d '\n' | pbcopy
+   fi
+}
+
+function mfa_add () {
+   local MFA_DEVICE_NAME="${1}"
+   local MFA_SECRET_KEY="${2}"
+   if [[ -z "${MFA_DEVICE_NAME}" ]] || [[ -z "${MFA_SECRET_KEY}" ]]; then
+     echo "USAGE: mfa_add MFA_DEVICE_NAME MFA_SECRET_KEY";
+   else
+     security add-generic-password -a "${MFA_DEVICE_NAME}" -s "${MFA_DEVICE_NAME}" -w "${MFA_SECRET_KEY}" && \
+     echo "Secret added to keychain"
+   fi
+}
+
+function mfa_delete () {
+   local MFA_DEVICE_NAME="${1}"
+   if [[ -z "${MFA_DEVICE_NAME}" ]]; then
+     echo "USAGE: mfa_delete MFA_DEVICE_NAME";
+   else
+     security delete-generic-password -a "${MFA_DEVICE_NAME}" -s "${MFA_DEVICE_NAME}" 2>&1 >/dev/null
+   fi
+}

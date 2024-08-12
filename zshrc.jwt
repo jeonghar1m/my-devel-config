@@ -1,0 +1,31 @@
+decode_base64_url() {
+  local len=$((${#1} % 4))
+  local result="$1"
+  if [ $len -eq 2 ]; then result="$1"'=='
+  elif [ $len -eq 3 ]; then result="$1"'=' 
+  fi
+  echo "$result" | tr '_-' '/+' | base64 -d
+}
+
+decode_jwt(){
+   decode_base64_url $(echo -n $2 | cut -d "." -f $1) | jq .
+}
+
+decode_jwt_time(){
+  local exp=$(decode_base64_url $(echo -n $2 | cut -d "." -f $1) | jq .exp)
+  date -r $exp
+}
+
+_base64decode() {
+  echo $1 | base64 -d
+}
+
+# Decode JWT header
+alias jwth="decode_jwt 1"
+
+# Decode JWT Payload
+alias jwtp="decode_jwt 2"
+
+alias jwtt="decode_jwt_time 2"
+
+alias bd="noglob _base64decode"

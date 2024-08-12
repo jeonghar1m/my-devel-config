@@ -1,0 +1,43 @@
+################################
+# ~/.zshrc.local
+
+alias ssp='noglob _ssp'
+alias sscp='noglob _scp'
+alias stern="noglob _stern"
+alias kc='noglob _kc'
+
+_kc () {
+    kubectl get po | grep $1 | head -n 1 | awk '{print $1}'
+}
+
+_stern () {
+    if [[ "${2}" = "" ]]; then
+        command stern -e healthCheck --template '{{color .PodColor .PodName}} {{.Message}}' $1
+    else
+        command stern -e healthCheck --template '{{color .PodColor .PodName}} {{.Message}}' -E $2 $1
+    fi
+}
+
+_ssp() {
+    IFS='@ ' read -A INFO <<< $1
+    sshpass -p `gopass aws/$INFO[2]/$INFO[1]` ssh -p 2222 $INFO[1]@$INFO[2]
+}
+
+_scp() {
+    IFS='@ ' read -A INFO <<< $2
+    sshpass -p `gopass aws/$INFO[2]/$INFO[1]` scp -P 2222 -r $1 $INFO[1]@$INFO[2]:~/.
+}
+
+
+################################
+# ~/.ssh/config for ssm
+
+Host prod-i-* prod-mi-*
+    ProxyCommand sh -c "aws ssm start-session --target $(echo %h|cut -d - -f2-) --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+    User ec2-user
+    IdentityFile ~/.ssh/stunning-prod.id_rsa
+
+Host dev-i-* dev-mi-*
+    ProxyCommand sh -c "aws ssm start-session --target $(echo %h|cut -d - -f2-) --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+    User ec2-user
+    IdentityFile ~/.ssh/stunning-dev.id_rsa

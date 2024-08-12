@@ -1,0 +1,24 @@
+export LVIM=`which lvim`
+export NVR=`which nvr`
+export NVM_DIR="$HOME/.nvm"
+
+alias vi="$LVIM --listen /tmp/nvim-server-$(tmux display-message -p '#I.#P').pipe"
+
+if [ -n "$NVIM" ]; then
+    alias nvim=$NVR -cc split --remote-wait +'set bufhidden=wipe'
+fi
+
+if [ -n "$NVIM" ]; then
+    export VISUAL="$NVR -cc split --remote-wait +'set bufhidden=wipe'"
+    export EDITOR="$NVR -cc split --remote-wait +'set bufhidden=wipe'"
+else
+    export VISUAL="$HOME/my-devel-config/lvim.EDITOR"
+    export EDITOR="$HOME/my-devel-config/lvim.EDITOR"
+fi
+
+_greps() {
+    local line
+    line=`set -o pipefail; rg --column --line-number --no-heading --color=always --sort path -g "$2" --smart-case "$1" | fzf --ansi` \
+        && vi $(cut -d':' -f1 <<< "$line") +$(cut -d':' -f2 <<< "$line")
+}
+

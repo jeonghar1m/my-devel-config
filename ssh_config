@@ -1,0 +1,4 @@
+Host gitlab.com
+ HostName gitlab.com
+ RSAAuthentication yes
+ IdentityFile ~/.ssh/newrovp.id_rsa_passphrase
